@@ -1,7 +1,4 @@
 <resources>
     <string name="app_name">NearbyTweets</string>
-
-    <string name="action_settings">Settings</string>
     <string name="no_location_detected">No location detected</string>
-    <string name="loading">Loading...</string>
 </resources>

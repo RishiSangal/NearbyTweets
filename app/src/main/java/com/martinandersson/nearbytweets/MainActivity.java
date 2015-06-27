@@ -23,6 +23,8 @@ import com.twitter.sdk.android.core.models.Tweet;
 import com.twitter.sdk.android.core.services.SearchService;
 import com.twitter.sdk.android.core.services.params.Geocode;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.List;
 
 import butterknife.ButterKnife;
@@ -84,11 +86,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         String query = null;
         Geocode geocode = new Geocode(mLastLocation.getLatitude(), mLastLocation.getLongitude(), 10, Geocode.Distance.MILES);
 
-//        try {
-//            query = URLEncoder.encode("Dallas", "UTF-8");
-//        } catch (UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//        }
+        try {
+            query = URLEncoder.encode("Dallas", "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
 
         Log.d(TAG, "searchOnTwitter: " + query);
 
@@ -100,23 +102,27 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         Search results = searchResult.data;
                         List<Tweet> tweets = results.tweets; // tweets.size() = 9 (e.g.)
 
-                        String resultsText = "";
+                        StringBuilder sb = new StringBuilder();
                         Log.d(TAG, "tweets -> success: " + tweets.size());
                         for (Tweet tweet : tweets) {
-                            String tweetLocation = "unknown";
-                            if (tweet != null && tweet.coordinates != null) {
-                                tweetLocation = tweet.coordinates.getLatitude() + "," + tweet.coordinates.getLongitude();
+                            if (tweet != null) {
+
+                                String tweetLocation = "unknown";
+                                if (tweet.coordinates != null) {
+                                    tweetLocation = tweet.coordinates.getLatitude() + "," + tweet.coordinates.getLongitude();
+                                }
+                                Log.d(TAG, tweetLocation + ": " + tweet.text);
+                                sb.append(tweet.text).append('\n');
                             }
-                            Log.d(TAG, tweetLocation + ": " + tweet.text);
-                            resultsText += tweet.text + "\n";
                         }
-                        resultsTextview.setText(resultsText);
+                        resultsTextview.setText(sb.toString());
                     }
 
                     @Override
                     public void failure(TwitterException e) {
-                        // ignore
-                        Log.d(TAG, "tweets -> failure");
+                        // ignorelint.xml
+                        Log.d(TAG, "tweets -> failure: " + e.getMessage());
+
                     }
                 });
     }
@@ -150,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public void onConnected(Bundle connectionHint) {
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
-            String text = "Lat: " + String.valueOf(mLastLocation.getLatitude()) + "\nLon: " + String.valueOf(mLastLocation.getLongitude());
+            String text = "Lat: " + mLastLocation.getLatitude() + "\nLon: " + mLastLocation.getLongitude();
             mTextView.setText(text);
             Log.d(TAG, "onConnected: " + text);
         } else {
