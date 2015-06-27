@@ -5,17 +5,20 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.twitter.sdk.android.Twitter;
 import com.twitter.sdk.android.core.AppSession;
 import com.twitter.sdk.android.core.Callback;
@@ -47,19 +50,22 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private static final String TWITTER_SECRET = "JePHisPGIM3Lr2AM0lBznkWJduCFrvKItjZgtaI418ISMcNysP";
 
     public static final String TAG = MainActivity.class.getSimpleName();
+    public static final String KEY_TWEETS = "KEY_TWEETS";
+    public static final int TWITTER_SEARCH_RADIUS_MILES = 20;
 
     @InjectView(R.id.search_text)
     EditText mSearchText;
-
-    @InjectView(R.id.search_button)
-    Button mSearchButton;
-
     @InjectView(R.id.tweet_listview)
     ListView mTweetListview;
+    @InjectView(R.id.no_results)
+    TextView mNoResults;
+    @InjectView(R.id.progress_bar)
+    ProgressBar mProgressBar;
 
     private TweetViewAdapter mAdapter;
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
+    private List<Tweet> mTweets = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +78,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         mSearchText.setText("");
         mSearchText.setSelection(mSearchText.getText().length());
 
-        mAdapter = new TweetViewAdapter(this, new ArrayList<>());
+        // Check if we have data to display (after rotation)
+        if (savedInstanceState != null) {
+            mTweets = new Gson().fromJson(savedInstanceState.getString(KEY_TWEETS), new TypeToken<List<Tweet>>() {
+            }.getType());
+        } else {
+            mProgressBar.setVisibility(View.VISIBLE);
+        }
+
+        mAdapter = new TweetViewAdapter(this, mTweets);
         mTweetListview.setAdapter(mAdapter);
 
         mSearchText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
@@ -89,13 +103,23 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         logInGuestToTwitter();
     }
 
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(KEY_TWEETS, new Gson().toJson(mTweets));
+    }
+
     private void logInGuestToTwitter() {
         TwitterCore.getInstance().logInGuest(new Callback<AppSession>() {
             @Override
             public void success(Result appSessionResult) {
                 // REST API REQUEST...
                 Log.d(TAG, "logInGuest - success");
-                searchOnTwitter();
+                if (mTweets == null || mTweets.size() == 0) {
+                    searchOnTwitter();
+                } else {
+                    Log.d(TAG, "No need to search twitter");
+                }
             }
 
             @Override
@@ -117,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         // Setup search query
         String searchTerm = mSearchText.getText().toString();
         String query = null;
-        Geocode geocode = new Geocode(mLastLocation.getLatitude(), mLastLocation.getLongitude(), 10, Geocode.Distance.MILES);
+        Geocode geocode = new Geocode(mLastLocation.getLatitude(), mLastLocation.getLongitude(), TWITTER_SEARCH_RADIUS_MILES, Geocode.Distance.MILES);
         try {
             query = URLEncoder.encode(searchTerm, "UTF-8");
         } catch (UnsupportedEncodingException e) {
@@ -125,6 +149,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         }
 
         Log.d(TAG, "searchOnTwitter: " + query + ", " + mLastLocation.getLatitude() + ", " + mLastLocation.getLongitude());
+        mProgressBar.setVisibility(View.VISIBLE);
+        mNoResults.setVisibility(View.GONE);
 
         // Perform twitter search
         TwitterApiClient twitterApiClient = TwitterCore.getInstance().getApiClient();
@@ -135,14 +161,18 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                     @Override
                     public void success(Result<Search> searchResult) {
                         Search results = searchResult.data;
-                        List<Tweet> tweets = results.tweets;
-                        Log.d(TAG, "tweets -> success: " + tweets.size());
-                        mAdapter.setTweets(tweets);
+                        mTweets = results.tweets;
+                        Log.d(TAG, "tweets -> success: " + mTweets.size());
+                        mAdapter.setTweets(mTweets);
+                        mNoResults.setVisibility(mTweets.size() == 0 ? View.VISIBLE : View.GONE);
+                        mProgressBar.setVisibility(View.GONE);
                     }
 
                     @Override
                     public void failure(TwitterException e) {
-                        Log.d(TAG, "tweets -> failure: " + e.getMessage());
+                        Log.w(TAG, "tweets -> failure: " + e.getMessage());
+                        mNoResults.setVisibility(View.VISIBLE);
+                        mProgressBar.setVisibility(View.GONE);
                     }
                 });
     }
@@ -176,8 +206,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public void onConnected(Bundle connectionHint) {
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
-            String text = "Lat: " + mLastLocation.getLatitude() + "\nLon: " + mLastLocation.getLongitude();
-            Log.d(TAG, "onConnected: " + text);
+            Log.d(TAG, "onConnected: " + mLastLocation.getLatitude() + ", " + mLastLocation.getLongitude());
         } else {
             Toast.makeText(this, R.string.no_location_detected, Toast.LENGTH_LONG).show();
         }

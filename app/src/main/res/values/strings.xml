@@ -3,5 +3,6 @@
     <string name="no_location_detected">No location detected</string>
     <string name="enter_search_text">Enter search text</string>
     <string name="search">Search</string>
+    <string name="no_results">No results found</string>
 
 </resources>

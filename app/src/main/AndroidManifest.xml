@@ -18,7 +18,8 @@
 
         <activity
             android:name=".MainActivity"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:windowSoftInputMode="stateHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
@@ -27,7 +28,7 @@
         </activity>
         <meta-data
             android:name="io.fabric.ApiKey"
-            android:value="2200520c02ba5b70fd4a241db10d66841e7b39cb" />
+            android:value="2200520c02ba5b70fd4a241db10d66841e7b39cb"/>
     </application>
 
 </manifest>
