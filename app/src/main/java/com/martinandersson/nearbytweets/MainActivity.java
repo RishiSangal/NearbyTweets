@@ -71,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
     private List<Tweet> mTweets = new ArrayList<>();
+    private AppSession mAppSession;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,12 +116,16 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     private void logInGuestToTwitter() {
+        TwitterCore.getInstance().logOut();
         TwitterCore.getInstance().logInGuest(new Callback<AppSession>() {
             @Override
             public void success(Result appSessionResult) {
                 // REST API REQUEST...
                 Log.d(TAG, "logInGuest - success");
+
                 if (mTweets == null || mTweets.size() == 0) {
+
+                    mAppSession = (AppSession) appSessionResult.data;
                     searchOnTwitter();
                 } else {
                     Log.d(TAG, "No need to search twitter");
@@ -139,6 +144,13 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     @OnClick(R.id.search_button)
     public void searchOnTwitter() {
+
+        if (mAppSession == null) {
+            Log.w(TAG, "searchOnTwitter - mAppSession is null");
+            logInGuestToTwitter();
+            return;
+        }
+
         // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(mSearchText.getWindowToken(), 0);
@@ -163,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         mFailedToGetTweets.setVisibility(View.GONE);
 
         // Perform twitter search
-        TwitterApiClient twitterApiClient = TwitterCore.getInstance().getApiClient();
+        TwitterApiClient twitterApiClient =  TwitterCore.getInstance().getApiClient(mAppSession);
         SearchService searchService = twitterApiClient.getSearchService();
         searchService.tweets(query, geocode, null, null, "recent", MAX_NUMBER_OF_TWEETS,
                 null, null, null, true,
@@ -184,11 +196,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
                         final TwitterApiException apiException = (TwitterApiException) exception;
                         final int errorCode = apiException.getErrorCode();
+                        Log.w(TAG, "tweets -> failure: " + exception.getMessage() + ", errorCode: " + errorCode);
                         if (errorCode == TwitterApiConstants.Errors.APP_AUTH_ERROR_CODE || errorCode == TwitterApiConstants.Errors.GUEST_AUTH_ERROR_CODE) {
-                            Log.d(TAG, "tweets -> failure: Twitter guest authentication expired. Logging in again...");
+                            Log.d(TAG, "Twitter guest authentication expired. Logging in again...");
+                            Toast.makeText(MainActivity.this, "Session expired", Toast.LENGTH_SHORT).show();
                             logInGuestToTwitter();
                         } else {
-                            Log.w(TAG, "tweets -> failure: " + exception.getMessage());
                             mFailedToGetTweets.setVisibility(View.VISIBLE);
                         }
                     }
