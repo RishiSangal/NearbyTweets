@@ -120,12 +120,11 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         TwitterCore.getInstance().logInGuest(new Callback<AppSession>() {
             @Override
             public void success(Result appSessionResult) {
-                // REST API REQUEST...
                 Log.d(TAG, "logInGuest - success");
+                // Store app session
+                mAppSession = (AppSession) appSessionResult.data;
 
                 if (mTweets == null || mTweets.size() == 0) {
-
-                    mAppSession = (AppSession) appSessionResult.data;
                     searchOnTwitter();
                 } else {
                     Log.d(TAG, "No need to search twitter");
