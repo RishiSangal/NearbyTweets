@@ -4,5 +4,6 @@
     <string name="enter_search_text">Enter search text</string>
     <string name="search">Search</string>
     <string name="no_results">No results found</string>
+    <string name="failed_to_get_tweets">Failed to get tweets. Please try again later.</string>
 
 </resources>

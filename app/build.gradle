@@ -87,7 +87,6 @@ task pmd(type: Pmd) {
     source 'src'
     include '**/*.java'
     exclude '**/gen/**'
-    exclude '**/jp/co/cyberagent/android/gpuimage/*'
     exclude '**/*Tests.java'
     exclude '**/*TestCase.java'
 

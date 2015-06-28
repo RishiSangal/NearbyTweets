@@ -24,9 +24,11 @@ import com.twitter.sdk.android.core.AppSession;
 import com.twitter.sdk.android.core.Callback;
 import com.twitter.sdk.android.core.Result;
 import com.twitter.sdk.android.core.TwitterApiClient;
+import com.twitter.sdk.android.core.TwitterApiException;
 import com.twitter.sdk.android.core.TwitterAuthConfig;
 import com.twitter.sdk.android.core.TwitterCore;
 import com.twitter.sdk.android.core.TwitterException;
+import com.twitter.sdk.android.core.internal.TwitterApiConstants;
 import com.twitter.sdk.android.core.models.Search;
 import com.twitter.sdk.android.core.models.Tweet;
 import com.twitter.sdk.android.core.services.SearchService;
@@ -52,6 +54,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public static final String TAG = MainActivity.class.getSimpleName();
     public static final String KEY_TWEETS = "KEY_TWEETS";
     public static final int TWITTER_SEARCH_RADIUS_MILES = 20;
+    public static final int MAX_NUMBER_OF_TWEETS = 50;
 
     @InjectView(R.id.search_text)
     EditText mSearchText;
@@ -61,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     TextView mNoResults;
     @InjectView(R.id.progress_bar)
     ProgressBar mProgressBar;
+    @InjectView(R.id.failed_to_get_tweets)
+    TextView mFailedToGetTweets;
 
     private TweetViewAdapter mAdapter;
     private GoogleApiClient mGoogleApiClient;
@@ -141,21 +146,26 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         // Setup search query
         String searchTerm = mSearchText.getText().toString();
         String query = null;
-        Geocode geocode = new Geocode(mLastLocation.getLatitude(), mLastLocation.getLongitude(), TWITTER_SEARCH_RADIUS_MILES, Geocode.Distance.MILES);
         try {
             query = URLEncoder.encode(searchTerm, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
 
-        Log.d(TAG, "searchOnTwitter: " + query + ", " + mLastLocation.getLatitude() + ", " + mLastLocation.getLongitude());
+        Geocode geocode = null;
+        if (mLastLocation != null) {
+            geocode = new Geocode(mLastLocation.getLatitude(), mLastLocation.getLongitude(), TWITTER_SEARCH_RADIUS_MILES, Geocode.Distance.MILES);
+            Log.d(TAG, "searchOnTwitter: " + query + ", " + mLastLocation.getLatitude() + ", " + mLastLocation.getLongitude());
+        }
+
         mProgressBar.setVisibility(View.VISIBLE);
         mNoResults.setVisibility(View.GONE);
+        mFailedToGetTweets.setVisibility(View.GONE);
 
         // Perform twitter search
         TwitterApiClient twitterApiClient = TwitterCore.getInstance().getApiClient();
         SearchService searchService = twitterApiClient.getSearchService();
-        searchService.tweets(query, geocode, null, null, "recent", 20,
+        searchService.tweets(query, geocode, null, null, "recent", MAX_NUMBER_OF_TWEETS,
                 null, null, null, true,
                 new Callback<Search>() {
                     @Override
@@ -169,10 +179,18 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                     }
 
                     @Override
-                    public void failure(TwitterException e) {
-                        Log.w(TAG, "tweets -> failure: " + e.getMessage());
-                        mNoResults.setVisibility(View.VISIBLE);
+                    public void failure(TwitterException exception) {
                         mProgressBar.setVisibility(View.GONE);
+
+                        final TwitterApiException apiException = (TwitterApiException) exception;
+                        final int errorCode = apiException.getErrorCode();
+                        if (errorCode == TwitterApiConstants.Errors.APP_AUTH_ERROR_CODE || errorCode == TwitterApiConstants.Errors.GUEST_AUTH_ERROR_CODE) {
+                            Log.d(TAG, "tweets -> failure: Twitter guest authentication expired. Logging in again...");
+                            logInGuestToTwitter();
+                        } else {
+                            Log.w(TAG, "tweets -> failure: " + exception.getMessage());
+                            mFailedToGetTweets.setVisibility(View.VISIBLE);
+                        }
                     }
                 });
     }
