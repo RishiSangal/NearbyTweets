@@ -40,8 +40,8 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
+import butterknife.Bind;
 import butterknife.ButterKnife;
-import butterknife.InjectView;
 import butterknife.OnClick;
 import io.fabric.sdk.android.Fabric;
 
@@ -56,15 +56,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public static final int TWITTER_SEARCH_RADIUS_MILES = 20;
     public static final int MAX_NUMBER_OF_TWEETS = 50;
 
-    @InjectView(R.id.search_text)
+    @Bind(R.id.search_text)
     EditText mSearchText;
-    @InjectView(R.id.tweet_listview)
+    @Bind(R.id.tweet_listview)
     ListView mTweetListview;
-    @InjectView(R.id.no_results)
+    @Bind(R.id.no_results)
     TextView mNoResults;
-    @InjectView(R.id.progress_bar)
+    @Bind(R.id.progress_bar)
     ProgressBar mProgressBar;
-    @InjectView(R.id.failed_to_get_tweets)
+    @Bind(R.id.failed_to_get_tweets)
     TextView mFailedToGetTweets;
 
     private TweetViewAdapter mAdapter;
@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         TwitterAuthConfig authConfig = new TwitterAuthConfig(TWITTER_KEY, TWITTER_SECRET);
         Fabric.with(this, new Twitter(authConfig));
         setContentView(R.layout.activity_main);
-        ButterKnife.inject(this);
+        ButterKnife.bind(this);
 
         mSearchText.setText("");
         mSearchText.setSelection(mSearchText.getText().length());
@@ -174,7 +174,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         mFailedToGetTweets.setVisibility(View.GONE);
 
         // Perform twitter search
-        TwitterApiClient twitterApiClient =  TwitterCore.getInstance().getApiClient(mAppSession);
+        TwitterApiClient twitterApiClient = TwitterCore.getInstance().getApiClient(mAppSession);
         SearchService searchService = twitterApiClient.getSearchService();
         searchService.tweets(query, geocode, null, null, "recent", MAX_NUMBER_OF_TWEETS,
                 null, null, null, true,
